@@ -1,6 +1,7 @@
 import struct
 import random
-import numpy as np
+import glMath
+import math
 
 from obj import Obj
 from collections import namedtuple
@@ -45,6 +46,10 @@ BLACK = color(0,0,0)
 WHITE = color(1,1,1)
 
 class Render(object):
+    """
+    The Render class provides with atributes and methods to create a window, viewport and zbuffer to draw and then output into a .bmp file.
+    """
+
     def __init__(self, width, height):
         self.curr_color = WHITE
         self.clear_color = BLACK
@@ -56,27 +61,85 @@ class Render(object):
 
         self.active_shader = None
 
+        self.createViewMatrix()
+        self.createProjectionMatrix()
+
+    def createViewMatrix(self, camPosition = V3(0,0,0), camRotation = V3(0,0,0)):
+        camMatrix = self.createObjectMatrix(translate=camPosition, rotate=camRotation)
+        self.viewMatrix = glMath.inverse(camMatrix)
+
     def glCreateWindow(self, width, height):
+        """
+        Create window and viewport with input width and height.
+        """
         self.width = width
         self.height = height
         self.glClear()
         self.glViewport(0, 0, width, height)
 
+    def lookAt(self, eye, camPosition = V3(0,0,0)):
+
+        forward = glMath.substract(camPosition, eye)
+        forward = glMath.normalize(forward)
+
+        right = glMath.cross_product(V3(0,1,0), forward)
+        right = glMath.normalize(right)
+
+        up = glMath.cross_product(forward, right)
+        up = glMath.normalize(up)
+
+        camMatrix = [
+            [right[0], up[0], forward[0], camPosition.x],
+            [right[1], up[1], forward[1], camPosition.y],
+            [right[2], up[2], forward[2], camPosition.z],
+            [0,0,0,1]
+            ]
+
+        self.viewMatrix = glMath.inverse(camMatrix)
+
+    def createProjectionMatrix(self, n = 0.1, f = 1000, fov = 60):
+
+        t = math.tan((fov * math.pi / 180) / 2) * n
+        r = t * self.vpWidth / self.vpHeight
+
+        self.projectionMatrix = [
+            [n / r, 0, 0, 0],
+            [0, n / t, 0, 0],
+            [0, 0, -(f+n)/(f-n), -(2*f*n)/(f-n)],
+            [0, 0, -1, 0]
+            ]
+
     def glViewport(self, x, y, width, height):
+        """
+        Create viewport.
+        """
         self.vpX = x
         self.vpY = y
         self.vpWidth = width
         self.vpHeight = height
 
+        self.viewportMatrix = [
+            [width/2, 0, 0, x + width/2],
+            [0, height/2, 0, y + height/2],
+            [0, 0, 0.5, 0.5],
+            [0, 0, 0, 1]
+            ]
+
     def glClear(self):
+        """
+        Return window matrix and zbuffer matrix to default values.
+        """
         self.pixels = [ [ self.clear_color for x in range(self.width)] for y in range(self.height) ]
 
         #Z - buffer, depthbuffer, buffer de profudidad
-        self.zbuffer = [ [ -float('inf') for x in range(self.width)] for y in range(self.height) ]
+        self.zbuffer = [ [ float('inf') for x in range(self.width)] for y in range(self.height) ]
 
     def glVertex(self, x, y, color = None):
-        pixelX = ( x + 1) * (self.vpWidth  / 2 ) + self.vpX
-        pixelY = ( y + 1) * (self.vpHeight / 2 ) + self.vpY
+        """
+        Draws point in window with NDC coordinates with input color or with current color.
+        """
+        pixelX = (x + 1) * (self.vpWidth / 2) + self.vpX
+        pixelY = (y + 1) * (self.vpHeight / 2) + self.vpY
 
         if pixelX >= self.width or pixelX < 0 or pixelY >= self.height or pixelY < 0:
             return
@@ -87,6 +150,12 @@ class Render(object):
             pass
 
     def glVertex_coord(self, x, y, color = None):
+        """
+        Draws point with window coordinates with input color or with current color.
+        """
+        if x < self.vpX or x >= self.vpX + self.vpWidth or y < self.vpY or y >= self.vpY + self.vpHeight:
+            return
+
         if x >= self.width or x < 0 or y >= self.height or y < 0:
             return
 
@@ -96,12 +165,21 @@ class Render(object):
             pass
 
     def glColor(self, r, g, b):
+        """
+        Changes current color to input color.
+        """
         self.curr_color = color(r,g,b)
 
     def glClearColor(self, r, g, b):
+        """
+        Changes clear_color into input color.
+        """
         self.clear_color = color(r,g,b)
 
     def glFinish(self, filename):
+        """
+        Writes window data into .bmp file.
+        """
         archivo = open(filename, 'wb')
 
         # File header 14 bytes
@@ -176,7 +254,10 @@ class Render(object):
 
         archivo.close()
 
-    def glLine(self, v0, v1, color = None): # NDC
+    def glLine(self, v0, v1, color = None):
+        """
+        Draws line with NDC coordinates.
+        """
         x0 = round(( v0.x + 1) * (self.vpWidth  / 2 ) + self.vpX)
         x1 = round(( v1.x + 1) * (self.vpWidth  / 2 ) + self.vpX)
         y0 = round(( v0.y + 1) * (self.vpHeight / 2 ) + self.vpY)
@@ -215,7 +296,10 @@ class Render(object):
                 y += 1 if y0 < y1 else -1
                 limit += 1
 
-    def glLine_coord(self, v0, v1, color = None): # Window coordinates
+    def glLine_coord(self, v0, v1, color = None):
+        """
+        Draws line with window coordinates.
+        """
         x0 = v0.x
         x1 = v1.x
         y0 = v0.y
@@ -258,13 +342,88 @@ class Render(object):
                     y += 1 if y0 < y1 else -1
                     limit += 1
 
-    def transform(self, vertex, translate=V3(0,0,0), scale=V3(1,1,1)):
-        return V3(round(vertex[0] * scale.x + translate.x),
-                  round(vertex[1] * scale.y + translate.y),
-                  round(vertex[2] * scale.z + translate.z))
+    def transform(self, vertex, vMatrix):
+        """
+        Translates and scales a vertex.
+        """
+        augVertex = V4( vertex[0], vertex[1], vertex[2], 1)
+        transVertex = glMath.multiply(glMath.multiply(glMath.multiply(glMath.multiply(self.viewportMatrix, self.projectionMatrix), self.viewMatrix), vMatrix), augVertex)
+
+        transVertex = V3(transVertex[0] / transVertex[3],
+                         transVertex[1] / transVertex[3],
+                         transVertex[2] / transVertex[3])
+
+        return transVertex
+
+    def dirTransform(self, vertex, vMatrix):
+        augVertex = V4( vertex[0], vertex[1], vertex[2], 0)
+        transVertex = glMath.multiply(vMatrix, augVertex)
+
+        transVertex = V3(transVertex[0],
+                         transVertex[1],
+                         transVertex[2])
+
+        return transVertex
+
+    def createObjectMatrix(self, translate = V3(0,0,0), scale = V3(1,1,1), rotate=V3(0,0,0)):
+
+        translateMatrix = [
+            [1, 0, 0, translate.x],
+            [0, 1, 0, translate.y],
+            [0, 0, 1, translate.z],
+            [0, 0, 0, 1]
+            ]
+
+        scaleMatrix = [
+            [scale.x, 0, 0, 0],
+            [0, scale.y, 0, 0],
+            [0, 0, scale.z, 0],
+            [0, 0, 0, 1]
+            ]
+
+        rotationMatrix = self.createRotationMatrix(rotate)
+
+        return glMath.multiply(glMath.multiply(translateMatrix, rotationMatrix), scaleMatrix)
+
+    def createRotationMatrix(self, rotate=V3(0,0,0)):
+
+        pitch = math.radians(rotate.x)
+        yaw = math.radians(rotate.y)
+        roll = math.radians(rotate.z)
+
+        rotationX = [
+            [1, 0, 0, 0],
+            [0, math.cos(pitch),-math.sin(pitch), 0],
+            [0, math.sin(pitch), math.cos(pitch), 0],
+            [0, 0, 0, 1]
+            ]
+
+        rotationY = [
+            [math.cos(yaw), 0, math.sin(yaw), 0],
+            [0, 1, 0, 0],
+            [-math.sin(yaw), 0, math.cos(yaw), 0],
+            [0, 0, 0, 1]
+            ]
+
+        rotationZ = [
+            [math.cos(roll),-math.sin(roll), 0, 0],
+            [math.sin(roll), math.cos(roll), 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
+            ]
+
+        return glMath.multiply(glMath.multiply(rotationX, rotationY), rotationZ)
     
-    def loadModel(self, filename, translate = V3(0,0,0), scale = V3(1,1,1), isWireframe = False):
+    def loadModel(self, filename, translate = V3(0,0,0), scale = V3(1,1,1), rotate=V3(0,0,0), isWireframe = False):
+        """
+        Reads Obj file and draws it in window.
+        Has wireframe flag.
+        """
         model = Obj(filename)
+
+        modelMatrix = self.createObjectMatrix(translate, scale, rotate)
+
+        rotationMatrix = self.createRotationMatrix(rotate)
 
         for face in model.faces:
 
@@ -284,11 +443,11 @@ class Render(object):
                 if vertCount > 3:
                     v3 = model.vertices[ face[3][0] - 1 ]
 
-                v0 = self.transform(v0,translate, scale)
-                v1 = self.transform(v1,translate, scale)
-                v2 = self.transform(v2,translate, scale)
+                v0 = self.transform(v0, modelMatrix)
+                v1 = self.transform(v1, modelMatrix)
+                v2 = self.transform(v2, modelMatrix)
                 if vertCount > 3:
-                    v3 = self.transform(v3,translate, scale)
+                    v3 = self.transform(v3, modelMatrix)
 
                 if self.active_texture:
                     vt0 = model.texcoords[face[0][1] - 1]
@@ -309,14 +468,24 @@ class Render(object):
                 vn0 = model.normals[face[0][2] - 1]
                 vn1 = model.normals[face[1][2] - 1]
                 vn2 = model.normals[face[2][2] - 1]
+
+                vn0 = self.dirTransform(vn0, rotationMatrix)
+                vn1 = self.dirTransform(vn1, rotationMatrix)
+                vn2 = self.dirTransform(vn2, rotationMatrix)
                 if vertCount > 3:
                     vn3 = model.normals[face[3][2] - 1]
+                    vn3 = self.dirTransform(vn3, rotationMatrix)
+
 
                 self.triangle_bc(v0,v1,v2, texcoords = (vt0,vt1,vt2), normals = (vn0,vn1,vn2))
                 if vertCount > 3: #asumamos que 4, un cuadrado
                     self.triangle_bc(v0,v2,v3, texcoords = (vt0,vt2,vt3), normals = (vn0,vn2,vn3))
 
     def drawPoly(self, points, color = None):
+        """
+        Draws polygon (w/o fill).
+        """
+
         count = len(points)
         for i in range(count):
             v0 = points[i]
@@ -324,6 +493,9 @@ class Render(object):
             self.glLine_coord(v0, v1, color)
 
     def triangle(self, A, B, C, color = None):
+        """
+        Draws triangle (w/ fill).
+        """
         
         def flatBottomTriangle(v1,v2,v3):
             #self.drawPoly([v1,v2,v3], color)
@@ -372,13 +544,15 @@ class Render(object):
             flatBottomTriangle(D,B,C)
             flatTopTriangle(A,B,D)
 
-    #Barycentric Coordinates
     def triangle_bc(self, A, B, C, texcoords = (), normals = (), _color = None):
+        """
+        Draws triangle with barycentric coordinates (w/ fill).
+        """
         #bounding box
-        minX = min(A.x, B.x, C.x)
-        minY = min(A.y, B.y, C.y)
-        maxX = max(A.x, B.x, C.x)
-        maxY = max(A.y, B.y, C.y)
+        minX = round(min(A.x, B.x, C.x))
+        minY = round(min(A.y, B.y, C.y))
+        maxX = round(max(A.x, B.x, C.x))
+        maxY = round(max(A.y, B.y, C.y))
 
         for x in range(minX, maxX + 1):
             for y in range(minY, maxY + 1):
@@ -390,20 +564,22 @@ class Render(object):
                 if u >= 0 and v >= 0 and w >= 0:
 
                     z = A.z * u + B.z * v + C.z * w
-                    if z > self.zbuffer[y][x]:
+                    if z < self.zbuffer[y][x] and z <= 1 and z >= -1:
                         
-                        r, g, b = self.active_shader(
-                            self,
-                            verts=(A,B,C),
-                            baryCoords=(u,v,w),
-                            texCoords=texcoords,
-                            normals=normals,
-                            color = _color or self.curr_color)
+                        if self.active_shader:
+
+                            r, g, b = self.active_shader(
+                                self,
+                                verts=(A,B,C),
+                                baryCoords=(u,v,w),
+                                texCoords=texcoords,
+                                normals=normals,
+                                color = _color or self.curr_color)
+                        else: 
+                            b, g, r = _color or self.curr_color
 
                         self.glVertex_coord(x, y, color(r,g,b))
                         self.zbuffer[y][x] = z
-
-
 
 
 

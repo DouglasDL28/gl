@@ -1,23 +1,17 @@
 from gl import Render, color, V2, V3
 from obj import Obj, Texture
-import glMath
-
 from shaders import *
 
-import random
+r = Render(768,432)
 
-r = Render(1000,1000)
+r.active_texture = Texture('./models/model.bmp')
+r.active_shader = phong
 
-r.active_texture = Texture('./models/earthDay.bmp')
-r.active_texture2 = Texture('./models/earthNight.bmp')
+posModel = V3( 0, 0, -5)
 
-r.active_shader = toon
+r.lookAt(posModel, V3(2,2,0))
 
-luz = V3(0,0,1)
-r.light = glMath.normalize(luz)
+r.loadModel('./models/model.obj', posModel, V3(1,1,1), V3(0,0,0))
 
-r.loadModel('./models/earth.obj', V3(500,500,0), V3(1,1,1))
-
-r.glFinish('toon.bmp')
-
+r.glFinish('output.bmp')
 
