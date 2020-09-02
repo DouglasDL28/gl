@@ -1,58 +1,49 @@
-import caffeine
-from gl import Render, color, V2, V3
+from gl import Raytracer, color, V2, V3
 from obj import Obj, Texture
-from shaders import *
+from sphere import Sphere, Material
+import random
 
-width = 1920
-height = 1080
+brick = Material(diffuse = color(0.8, 0.25, 0.25 ))
+stone = Material(diffuse = color(0.4, 0.4, 0.4 ))
+grass = Material(diffuse = color(0.5, 1, 0))
 
-# width = 800
-# height = 500
+# Snowman
+snow = Material(diffuse=color(0.9,0.9,0.9))
+button = Material(diffuse=color(0.1,0.1,0.1))
+carrot = Material(diffuse=color(0.85,0.25,0.25))
 
-print("Inicio")
-r = Render(width,height)
+width = 300
+height = 500
 
-# CHARACTER
-r.active_texture = Texture('./models/model.bmp')
-r.active_normalMap = Texture('./models/model_normal.bmp')
+r = Raytracer(width,height)
 
-r.active_shader = normalMap
-r.loadModel('./models/model.obj', V3(1.5,-1,-2), V3(1,1,1), V3(0,190,0))
+#CUERPO
+r.scene.append( Sphere(V3(0, -1,  -5), 1, snow) )
+r.scene.append( Sphere(V3(0, 0.4,  -5), 0.7, snow) )
+r.scene.append( Sphere(V3(0, 1.4,  -5), 0.5, snow) )
 
-# GOLEMS
-r.active_texture = Texture('./models/Stone/rough.bmp')
+# BOTONES
+r.scene.append( Sphere(V3(0, 0.4,  -3), 0.08, button) )
+r.scene.append( Sphere(V3(0, 0,  -3), 0.09, button) )
+r.scene.append( Sphere(V3(0, -.5,  -3), 0.1, button) )
 
-r.active_shader = toon
-r.loadModel('./models/Stone/Stone.obj', V3(-2,0,-5), V3(0.2,0.2,0.2), V3(0,0,0))
+#BOCA
+r.scene.append( Sphere(V3(-0.14, 0.8,  -3), 0.03, button) )
+r.scene.append( Sphere(V3(-0.06, 0.7,  -3), 0.03, button) )
+r.scene.append( Sphere(V3(0.06, 0.7,  -3), 0.03, button) )
+r.scene.append( Sphere(V3(0.14, 0.8,  -3), 0.03, button) )
 
-r.active_shader = colorful
-r.loadModel('./models/Stone/Stone.obj', V3(2,0,-5), V3(0.2,0.2,0.2), V3(0,0,0))
+#NARIZ
+r.scene.append( Sphere(V3(0, 0.85, -3), 0.06, carrot) )
 
-# ROCKS
-r.active_texture = Texture('./models/Rock/rock_texture.bmp')
-r.active_normalMap = Texture('./models/Rock/rock_normal.bmp')
+#OJOS
+r.scene.append( Sphere(V3(-0.1, 0.95, -3), 0.05, Material()) )
+r.scene.append( Sphere(V3(-0.1, 0.9505, -2.9), 0.03, button) )
 
-r.active_shader = colorful
-r.loadModel('./models/Rock/rock.obj', V3(-4,0,-7), V3(0.007,0.007,0.007), V3(0,0,0))
+r.scene.append( Sphere(V3(0.1, 0.95, -3), 0.05, Material()) )
+r.scene.append( Sphere(V3(0.1, 0.9505, -2.9), 0.03, button) )
 
-r.active_shader = normalMap
-r.loadModel('./models/Rock/rock.obj', V3(4,0,-7), V3(0.007,0.007,0.007), V3(0,0,0))
 
-# GOLD BAG
-r.active_texture = Texture('./models/GoldBag/gold_bag_textures.bmp')
-
-r.active_shader = phong
-r.loadModel('./models/GoldBag/gold_bag.obj', V3(0,1,-8), V3(0.08,0.08,0.08), V3(0,0,90))
-
-r.active_shader = toon
-r.loadModel('./models/GoldBag/gold_bag.obj', V3(1,1,-10), V3(0.08,0.08,0.08), V3(-50,0,0))
-
-# MOON
-r.active_texture = Texture('./models/Moon/moon.bmp')
-
-r.active_shader = toon
-r.loadModel('./models/Moon/Moon_2K.obj', V3(-10,6,-15), V3(1,1,1), V3(0,0,0))
+r.rtRender()
 
 r.glFinish('output.bmp')
-
-print("Fin")

@@ -46,11 +46,10 @@ def multiply(A, B):
 
             return res
 
-
 def normalize(V):
-    norm = (V[0]**2 + V[1]**2 + V[2]**2)**0.5
+    norm_ = norm(V)
 
-    return V[0]/norm, V[1]/norm, V[2]/norm
+    return V[0]/norm_, V[1]/norm_, V[2]/norm_
 
 def substract(A, B):
     return [A[i] - B[i] for i in range(len(A))]
@@ -91,3 +90,5 @@ def inverse(m):
             cofactors[r][c] = cofactors[r][c]/det
     return cofactors
 
+def norm(V):
+    return (V[0]**2 + V[1]**2 + V[2]**2)**0.5
