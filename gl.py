@@ -59,6 +59,8 @@ class Render(object):
         self.active_texture = None
         self.active_texture2 = None
 
+        self.active_normalMap = None
+        
         self.active_shader = None
 
         self.createViewMatrix()
@@ -68,14 +70,6 @@ class Render(object):
         camMatrix = self.createObjectMatrix(translate=camPosition, rotate=camRotation)
         self.viewMatrix = glMath.inverse(camMatrix)
 
-    def glCreateWindow(self, width, height):
-        """
-        Create window and viewport with input width and height.
-        """
-        self.width = width
-        self.height = height
-        self.glClear()
-        self.glViewport(0, 0, width, height)
 
     def lookAt(self, eye, camPosition = V3(0,0,0)):
 
@@ -88,14 +82,13 @@ class Render(object):
         up = glMath.cross_product(forward, right)
         up = glMath.normalize(up)
 
-        camMatrix = [
-            [right[0], up[0], forward[0], camPosition.x],
-            [right[1], up[1], forward[1], camPosition.y],
-            [right[2], up[2], forward[2], camPosition.z],
-            [0,0,0,1]
-            ]
+        camMatrix = [[right[0], up[0], forward[0], camPosition.x],
+                    [right[1], up[1], forward[1], camPosition.y],
+                    [right[2], up[2], forward[2], camPosition.z],
+                    [0,0,0,1]]
 
         self.viewMatrix = glMath.inverse(camMatrix)
+
 
     def createProjectionMatrix(self, n = 0.1, f = 1000, fov = 60):
 
@@ -108,6 +101,15 @@ class Render(object):
             [0, 0, -(f+n)/(f-n), -(2*f*n)/(f-n)],
             [0, 0, -1, 0]
             ]
+
+    def glCreateWindow(self, width, height):
+        """
+        Create window and viewport with input width and height.
+        """
+        self.width = width
+        self.height = height
+        self.glClear()
+        self.glViewport(0, 0, width, height)
 
     def glViewport(self, x, y, width, height):
         """
@@ -347,7 +349,17 @@ class Render(object):
         Translates and scales a vertex.
         """
         augVertex = V4( vertex[0], vertex[1], vertex[2], 1)
-        transVertex = glMath.multiply(glMath.multiply(glMath.multiply(glMath.multiply(self.viewportMatrix, self.projectionMatrix), self.viewMatrix), vMatrix), augVertex)
+        transVertex = glMath.multiply(vMatrix, augVertex)
+
+        transVertex = V3(transVertex[0] / transVertex[3],
+                         transVertex[1] / transVertex[3],
+                         transVertex[2] / transVertex[3])
+
+        return transVertex
+
+    def camTransform(self, vertex):
+        augVertex = V4( vertex[0], vertex[1], vertex[2], 1)
+        transVertex = glMath.multiply(glMath.multiply(glMath.multiply(self.viewportMatrix, self.projectionMatrix), self.viewMatrix), augVertex)
 
         transVertex = V3(transVertex[0] / transVertex[3],
                          transVertex[1] / transVertex[3],
@@ -446,24 +458,30 @@ class Render(object):
                 v0 = self.transform(v0, modelMatrix)
                 v1 = self.transform(v1, modelMatrix)
                 v2 = self.transform(v2, modelMatrix)
+                A = v0
+                B = v1
+                C = v2
+
+                v0 = self.camTransform(v0)
+                v1 = self.camTransform(v1)
+                v2 = self.camTransform(v2)
+
+
                 if vertCount > 3:
                     v3 = self.transform(v3, modelMatrix)
+                    D = v3
+                    v3 = self.camTransform(v3)
 
-                if self.active_texture:
-                    vt0 = model.texcoords[face[0][1] - 1]
-                    vt1 = model.texcoords[face[1][1] - 1]
-                    vt2 = model.texcoords[face[2][1] - 1]
-                    vt0 = V2(vt0[0], vt0[1])
-                    vt1 = V2(vt1[0], vt1[1])
-                    vt2 = V2(vt2[0], vt2[1])
-                    if vertCount > 3:
-                        vt3 = model.texcoords[face[3][1] - 1]
-                        vt3 = V2(vt3[0], vt3[1])
-                else:
-                    vt0 = V2(0,0) 
-                    vt1 = V2(0,0) 
-                    vt2 = V2(0,0) 
-                    vt3 = V2(0,0)
+                vt0 = model.texcoords[face[0][1] - 1]
+                vt1 = model.texcoords[face[1][1] - 1]
+                vt2 = model.texcoords[face[2][1] - 1]
+                vt0 = V2(vt0[0], vt0[1])
+                vt1 = V2(vt1[0], vt1[1])
+                vt2 = V2(vt2[0], vt2[1])
+                if vertCount > 3:
+                    vt3 = model.texcoords[face[3][1] - 1]
+                    vt3 = V2(vt3[0], vt3[1])
+
 
                 vn0 = model.normals[face[0][2] - 1]
                 vn1 = model.normals[face[1][2] - 1]
@@ -477,9 +495,9 @@ class Render(object):
                     vn3 = self.dirTransform(vn3, rotationMatrix)
 
 
-                self.triangle_bc(v0,v1,v2, texcoords = (vt0,vt1,vt2), normals = (vn0,vn1,vn2))
+                self.triangle_bc(v0,v1,v2, texcoords = (vt0,vt1,vt2), normals = (vn0,vn1,vn2), verts = (A,B,C))
                 if vertCount > 3: #asumamos que 4, un cuadrado
-                    self.triangle_bc(v0,v2,v3, texcoords = (vt0,vt2,vt3), normals = (vn0,vn2,vn3))
+                    self.triangle_bc(v0,v2,v3, texcoords = (vt0,vt2,vt3), normals = (vn0,vn2,vn3), verts = (A,C,D))
 
     def drawPoly(self, points, color = None):
         """
@@ -544,7 +562,7 @@ class Render(object):
             flatBottomTriangle(D,B,C)
             flatTopTriangle(A,B,D)
 
-    def triangle_bc(self, A, B, C, texcoords = (), normals = (), _color = None):
+    def triangle_bc(self, A, B, C, texcoords = (), normals = (), verts = (), _color = None):
         """
         Draws triangle with barycentric coordinates (w/ fill).
         """
@@ -570,7 +588,7 @@ class Render(object):
 
                             r, g, b = self.active_shader(
                                 self,
-                                verts=(A,B,C),
+                                verts=verts,
                                 baryCoords=(u,v,w),
                                 texCoords=texcoords,
                                 normals=normals,

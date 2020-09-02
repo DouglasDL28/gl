@@ -1,11 +1,12 @@
-# Carga un archivo OBJ
-
 import struct
 
 def color(r, g, b):
     return bytes([int(b * 255), int(g * 255), int(r * 255)])
 
 class Obj(object):
+    """
+    Carga un archivo Obj
+    """
     def __init__(self, filename):
         with open(filename, 'r') as file:
             self.lines = file.read().splitlines()
@@ -33,7 +34,6 @@ class Obj(object):
                     self.texcoords.append(list(map(float,value.split(' '))))
                 elif prefix == 'f':
                     self.faces.append([list(map(int,vert.split('/'))) for vert in value.split(' ')])
-
 
 class Texture(object):
     def __init__(self, path):

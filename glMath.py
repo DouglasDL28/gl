@@ -20,23 +20,32 @@ def multiply(A, B):
     nRows_B = len(B) if isinstance(B[0], (int, float)) else len(B[0])
     nCols_B = 1 if isinstance(B[0], (int, float)) else len(B[0])
 
-    # print("B: ", nRows_B, nCols_B)
-    # print("A: ", len(A), len(A[0]))
+    if not isinstance(A, (int, float)):
+        if len(A[0]) == nRows_B:
+            res = []
+            for i in range(len(A)):
+                row = []
 
-    if len(A[0]) == nRows_B:
-        res = []
-        for i in range(len(A)):
-            row = []
+                if nCols_B == 1:
+                    res.append(dot_product(A[i], B))
+                else:
+                    for j in range(nCols_B):
+                        row.append( dot_product(A[i], [x[j] for x in B]) )
+                    
+                    res.append(row)
 
-            if nCols_B == 1:
-                res.append(dot_product(A[i], B))
-            else:
-                for j in range(nCols_B):
-                    row.append( dot_product(A[i], [x[j] for x in B]) )
-                
-                res.append(row)
+            return res
+            
+    else:     
+        if nCols_B == 1:
+            return [ A*i for i in B ]
+        else:
+            res = []
+            for j in range(nRows_B):
+                res.append([ A*i for i in B[j] ])
 
-        return res
+            return res
+
 
 def normalize(V):
     norm = (V[0]**2 + V[1]**2 + V[2]**2)**0.5
@@ -47,7 +56,6 @@ def substract(A, B):
     return [A[i] - B[i] for i in range(len(A))]
 
 def transpose(m):
-    print(list(map(list,zip(*m))))
     return list(map(list,zip(*m)))
 
 def matrix_minor(m,i,j):
@@ -82,18 +90,4 @@ def inverse(m):
         for c in range(len(cofactors)):
             cofactors[r][c] = cofactors[r][c]/det
     return cofactors
-
-# A = [
-#     [ 5, 1 ,3], 
-#     [ 1, 1 ,1], 
-#     [ 1, 2 ,1]
-#     ]
-
-# B = [
-#     [ 5, 1 ,3], 
-#     [ 1, 1 ,1], 
-#     [ 1, 2 ,1]
-# ]
-
-# print(multiply(A, B))
 
