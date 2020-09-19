@@ -17,6 +17,12 @@ def dot_product(V1, V2):
 
 def multiply(A, B):
     # M x N * N x P = M x P
+    if not isinstance(A, (int, float)) and isinstance(A[0], (int, float)):
+        A, B = B, A
+
+        if not isinstance(B, (int, float)) and isinstance(B[0], (int, float)):
+            return [A[i] * B[i] for i in range(len(A))]
+
     nRows_B = len(B) if isinstance(B[0], (int, float)) else len(B[0])
     nCols_B = 1 if isinstance(B[0], (int, float)) else len(B[0])
 
@@ -52,7 +58,28 @@ def normalize(V):
     return V[0]/norm_, V[1]/norm_, V[2]/norm_
 
 def substract(A, B):
-    return [A[i] - B[i] for i in range(len(A))]
+    if isinstance(A,(int, float)) or isinstance(B,(int, float)):
+        if isinstance(A,(int, float)):
+            return [B[i] - A for i in range(len(B))]
+
+        elif isinstance(B,(int, float)):
+            return [A[i] - B for i in range(len(A))]
+        else:
+            return A - B
+    else:
+        return [A[i] - B[i] for i in range(len(A))]
+
+def add(A, B):
+    if isinstance(A,(int, float)) or isinstance(B,(int, float)):
+        if isinstance(A,(int, float)):
+            return [B[i] + A for i in range(len(B))]
+
+        elif isinstance(B,(int, float)):
+            return [A[i] + B for i in range(len(A))]
+        else:
+            return A + B
+    else:
+        return [A[i] + B[i] for i in range(len(A))]
 
 def transpose(m):
     return list(map(list,zip(*m)))
