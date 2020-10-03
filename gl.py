@@ -1,12 +1,15 @@
 import struct
 import random
-import numpy as np
 import glMath
-from numpy import matrix, cos, sin, tan
+from numpy import matrix, cos, sin, tan, pi
 
 from obj import Obj
 from collections import namedtuple
 
+OPAQUE = 0
+REFLECTIVE = 1
+TRANSPARENT = 2
+MAX_RECURSION_DEPTH = 3
 V2 = namedtuple('Point2', ['x', 'y'])
 V3 = namedtuple('Point3', ['x', 'y', 'z'])
 V4 = namedtuple('Point4', ['x', 'y', 'z','w'])
@@ -41,6 +44,59 @@ def baryCoords(A, B, C, P):
 
     return u, v, w
 
+def reflectVector(normal, dirVector):
+    # R = 2 * (N dot L) * N - L
+    reflect = 2 * glMath.dot_product(normal, dirVector)
+    reflect = glMath.multiply(reflect, normal)
+    reflect = glMath.substract(reflect, dirVector)
+    reflect = glMath.normalize(reflect)
+    return reflect
+
+def refractVector(N, I, ior):
+    # N = normal
+    # I = incident vector
+    # ior = index of refraction
+    # Snell's Law
+    cosi = max(-1, min(1, glMath.dot_product(I, N)))
+    etai = 1
+    etat = ior
+
+    if cosi < 0:
+        cosi = -cosi
+    else:
+        etai, etat = etat, etai
+        N = glMath.multiply(list(N), -1)
+
+    eta = etai/etat
+    k = 1 - eta * eta * (1 - (cosi * cosi))
+
+    if k < 0: # Total Internal Reflection
+        return None
+    
+    R = glMath.add(glMath.multiply(eta, list(I)), glMath.multiply((eta * cosi - k**0.5), N))
+    return glMath.normalize(R)
+
+def fresnel(N, I, ior):
+    # N = normal
+    # I = incident vector
+    # ior = index of refraction
+    cosi = max(-1, min(1, glMath.dot_product(I, N)))
+    etai = 1
+    etat = ior
+
+    if cosi > 0:
+        etai, etat = etat, etai
+
+    sint = etai / etat * (max(0, 1 - cosi * cosi) ** 0.5)
+
+    if sint >= 1: # Total Internal Reflection
+        return 1
+
+    cost = max(0, 1 - sint * sint) ** 0.5
+    cosi = abs(cosi)
+    Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost))
+    Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost))
+    return (Rs * Rs + Rp * Rp) / 2
 
 BLACK = color(0,0,0)
 WHITE = color(1,1,1)
@@ -58,6 +114,8 @@ class Raytracer(object):
 
         self.pointLight = None
         self.ambientLight = None
+
+        self.envmap = None
 
     def glCreateWindow(self, width, height):
         self.width = width
@@ -198,7 +256,7 @@ class Raytracer(object):
                 Py = 2 * ( (y+0.5) / self.height) - 1
 
                 #FOV(angulo de vision), asumiendo que el near plane esta a 1 unidad de la camara
-                t = tan( (self.fov * np.pi / 180) / 2 )
+                t = tan( (self.fov * pi / 180) / 2 )
                 r = t * self.width / self.height
                 Px *= r
                 Py *= t
@@ -207,23 +265,35 @@ class Raytracer(object):
                 direction = V3(Px, Py, -1)
                 direction = glMath.normalize(direction)
 
-                material = None
-                intersect = None
+                self.glVertex_coord(x, y, self.castRay(self.camPosition, direction))
 
-                #Revisamos cada rayo contra cada objeto
-                for obj in self.scene:
-                    hit = obj.ray_intersect(self.camPosition, direction)
-                    if hit is not None:
-                        if hit.distance < self.zbuffer[y][x]:
-                            self.zbuffer[y][x] = hit.distance
-                            material = obj.material
-                            intersect = hit
-                
-                #Si hubo intersepcion, dibujamos el pixel
-                if intersect is not None:
-                    self.glVertex_coord(x, y, self.pointColor(material, intersect))
 
-    def pointColor(self, material, intersect):
+    def scene_intercept(self, orig, direction, origObj = None):
+        tempZbuffer = float('inf')
+        material = None
+        intersect = None
+
+        #Revisamos cada rayo contra cada objeto
+        for obj in self.scene:
+            if obj is not origObj:
+                hit = obj.ray_intersect(orig, direction)
+                if hit is not None:
+                    if hit.distance < tempZbuffer:
+                        tempZbuffer = hit.distance
+                        material = obj.material
+                        intersect = hit
+
+        return material, intersect
+
+
+    def castRay(self, orig, direction, origObj = None, recursion = 0):
+
+        material, intersect = self.scene_intercept(orig, direction, origObj)
+
+        if material is None or recursion >= MAX_RECURSION_DEPTH:
+            if self.envmap:
+                return self.envmap.getColor(direction)
+            return self.clear_color
 
         objectColor = [material.diffuse[2] / 255,
                         material.diffuse[1] / 255,
@@ -233,7 +303,16 @@ class Raytracer(object):
         diffuseColor = [0,0,0]
         specColor = [0,0,0]
 
+        reflectColor = [0,0,0]
+        refractColor = [0,0,0]
+
+        finalColor = [0,0,0]
+
         shadow_intensity = 0
+
+        # Direccion de vista
+        view_dir = glMath.substract(self.camPosition, intersect.point)
+        view_dir = glMath.normalize(view_dir)
 
         if self.ambientLight:
             ambientColor = [self.ambientLight.strength * self.ambientLight.color[2] / 255,
@@ -252,29 +331,57 @@ class Raytracer(object):
                             intensity * self.pointLight.color[2] / 255]
 
             # Iluminacion especular
-            view_dir = glMath.substract(self.camPosition, intersect.point)
-            view_dir = glMath.normalize(view_dir)
+            reflect = reflectVector(intersect.normal, light_dir) # Reflejar el vector de luz
 
-            # R = 2 * (N dot L) * N - L
-            reflect = 2 * glMath.dot_product(intersect.normal, light_dir)
-            reflect = glMath.multiply(reflect, intersect.normal)
-            reflect = glMath.substract(reflect, light_dir)
-
-            # spec_intensity: lightIntensity * ( view_dir dot reflect) ** specularidad
+            # spec_intensity: lightIntensity * ( view_dir dot reflect) ** especularidad
             spec_intensity = self.pointLight.intensity * (max(0, glMath.dot_product(view_dir, reflect)) ** material.spec)
-
             specColor = [spec_intensity * self.pointLight.color[2] / 255,
                         spec_intensity * self.pointLight.color[1] / 255,
                         spec_intensity * self.pointLight.color[0] / 255]
 
-            for obj in self.scene:
-                if obj is not intersect.sceneObject:
-                    hit = obj.ray_intersect(intersect.point,  light_dir)
-                    if hit is not None and intersect.distance < glMath.norm(glMath.substract(self.pointLight.position, intersect.point)):
-                        shadow_intensity = 1
 
-        # Formula de iluminacion
-        finalColor = glMath.multiply(glMath.multiply(glMath.add(ambientColor, (1-shadow_intensity)),(glMath.add(diffuseColor,specColor))), objectColor)
+            shadMat, shadInter = self.scene_intercept(intersect.point,  light_dir, intersect.sceneObject)
+            if shadInter is not None and shadInter.distance < glMath.norm(glMath.substract(self.pointLight.position, intersect.point)):
+                shadow_intensity = 1
+
+        
+        if material.matType == OPAQUE:
+            # Formula de iluminacion, PHONG
+            finalColor = glMath.add(ambientColor, glMath.multiply((1 - shadow_intensity), glMath.add(diffuseColor,specColor)))
+        elif material.matType == REFLECTIVE:
+            reflect = reflectVector(intersect.normal, glMath.multiply(list(direction), -1))
+            reflectColor = self.castRay(intersect.point, reflect, intersect.sceneObject, recursion + 1)
+            reflectColor = [reflectColor[2] / 255,
+                            reflectColor[1] / 255,
+                            reflectColor[0] / 255]
+
+            finalColor = glMath.add(reflectColor, glMath.multiply((1 - shadow_intensity), specColor))
+
+        elif material.matType == TRANSPARENT:
+
+            outside = glMath.dot_product(direction, intersect.normal) < 0
+            bias = glMath.multiply(0.001, intersect.normal)
+            kr = fresnel(intersect.normal, direction, material.ior)
+
+            reflect = reflectVector(intersect.normal, glMath.multiply(list(direction), -1))
+            reflectOrig = glMath.add(intersect.point, bias) if outside else glMath.substract(intersect.point, bias)
+            reflectColor = self.castRay(reflectOrig, reflect, None, recursion + 1)
+            reflectColor = [reflectColor[2] / 255,
+                            reflectColor[1] / 255,
+                            reflectColor[0] / 255]
+
+            if kr < 1:
+                refract = refractVector(intersect.normal, direction, material.ior)
+                refractOrig = glMath.substract(intersect.point, bias) if outside else glMath.add(intersect.point, bias)
+                refractColor = self.castRay(refractOrig, refract, None, recursion + 1)
+                refractColor = [refractColor[2] / 255,
+                                refractColor[1] / 255,
+                                refractColor[0] / 255]
+
+            finalColor = glMath.add(glMath.multiply(reflectColor, kr), glMath.add(glMath.multiply(refractColor, (1 - kr)), glMath.multiply((1 - shadow_intensity), specColor)))
+
+        # Le aplicamos el color del objeto
+        finalColor = glMath.multiply(objectColor, finalColor)
 
         #Nos aseguramos que no suba el valor de color de 1
         r = min(1,finalColor[0])
@@ -282,3 +389,5 @@ class Raytracer(object):
         b = min(1,finalColor[2])
 
         return color(r, g, b)
+
+

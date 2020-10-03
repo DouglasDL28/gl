@@ -1,48 +1,36 @@
+import caffeine
 from gl import Raytracer, color, V2, V3
-from obj import Obj, Texture
-from sphere import Sphere, Material, PointLight, AmbientLight
+from obj import Obj, Texture, Envmap
+from sphere import *
 import random
 
+brick = Material(diffuse = color(0.8, 0.25, 0.25 ), spec = 16)
+stone = Material(diffuse = color(0.4, 0.4, 0.4 ), spec = 32)
+mirror = Material(spec = 64, matType = REFLECTIVE)
 
-# Snowman
-snow = Material(diffuse=color(0.9,0.9,0.9), spec=32)
-eyes = Material(diffuse=color(1,1,1), spec=64)
-button = Material(diffuse=color(0.1,0.1,0.1), spec=16)
-carrot = Material(diffuse=color(0.85,0.25,0.25), spec=32)
+glass = Material(spec = 64, ior = 1.5, matType= TRANSPARENT) 
 
-width = 240
-height = 400
 
+width = 256
+height = 256
 r = Raytracer(width,height)
+r.glClearColor(0.2, 0.6, 0.8)
+r.glClear()
 
-r.pointLight = PointLight(position = V3(-2,2,0), intensity = 1)
+r.envmap = Envmap('envmap.bmp')
+
+r.pointLight = PointLight(position = V3(0,0,0), intensity = 1)
 r.ambientLight = AmbientLight(strength = 0.1)
 
-#CUERPO
-r.scene.append(Sphere(V3(0, -1, -5), 1, snow))
-r.scene.append(Sphere(V3(0, 0.4, -5), 0.7, snow))
-r.scene.append(Sphere(V3(0, 1.4, -5), 0.5, snow))
+#r.scene.append( Sphere(V3( 1, 1, -10), 1.5, brick) )
+#r.scene.append( Sphere(V3( 0, -1, -5),  1, glass) )
+#r.scene.append( Sphere(V3(-3, 3, -10),  2, mirror) )
 
-# BOTONES
-r.scene.append(Sphere(V3(0, 0.4, -3), 0.08, button))
-r.scene.append(Sphere(V3(0, 0, -3), 0.09, button))
-r.scene.append(Sphere(V3(0, -.5, -3), 0.1, button))
+#r.scene.append( Plane( V3(-2,-3,0), V3(1,1,0), stone))
 
-#BOCA
-r.scene.append(Sphere(V3(-0.14, 0.8, -3), 0.03, button))
-r.scene.append(Sphere(V3(-0.06, 0.7, -3), 0.03, button))
-r.scene.append(Sphere(V3(0.06, 0.7, -3), 0.03, button))
-r.scene.append(Sphere(V3(0.14, 0.8, -3), 0.03, button))
-
-#NARIZ
-r.scene.append(Sphere(V3(0, 0.85, -3), 0.06, carrot))
-
-#OJOS
-r.scene.append(Sphere(V3(-0.1, 0.95, -3), 0.05, eyes))
-r.scene.append(Sphere(V3(-0.1, 0.9505, -2.9), 0.03, button))
-
-r.scene.append(Sphere(V3(0.1, 0.95, -3), 0.05, eyes))
-r.scene.append(Sphere(V3(0.1, 0.9505, -2.9), 0.03, button))
+r.scene.append( AABB(V3(0, 1.5, -5), 1.5, stone ) )
+r.scene.append( AABB(V3(1.5, -1.5, -5), 1.5, mirror ) )
+r.scene.append( AABB(V3(-1.5, -1.5, -5), 1.5, glass ) )
 
 
 r.rtRender()

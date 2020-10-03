@@ -16,41 +16,47 @@ def dot_product(V1, V2):
     return res
 
 def multiply(A, B):
-    # M x N * N x P = M x P
-    if not isinstance(A, (int, float)) and isinstance(A[0], (int, float)):
-        A, B = B, A
-
-        if not isinstance(B, (int, float)) and isinstance(B[0], (int, float)):
-            return [A[i] * B[i] for i in range(len(A))]
-
-    nRows_B = len(B) if isinstance(B[0], (int, float)) else len(B[0])
-    nCols_B = 1 if isinstance(B[0], (int, float)) else len(B[0])
-
+    """ Multiplica A x B. Evalúa si A y B son números, vectores o matrices para realizar la multiplicación. """
     if not isinstance(A, (int, float)):
-        if len(A[0]) == nRows_B:
-            res = []
-            for i in range(len(A)):
-                row = []
-
-                if nCols_B == 1:
-                    res.append(dot_product(A[i], B))
+        # A vector
+        if isinstance(A[0], (int, float)):
+            if not isinstance(B, (int, float)):
+                # B vector
+                if isinstance(B[0], (int, float)):
+                    return vector_x_vector(A, B)
+                # B matriz
                 else:
-                    for j in range(nCols_B):
-                        row.append( dot_product(A[i], [x[j] for x in B]) )
-                    
-                    res.append(row)
+                    return vector_x_matrix(B, A)
+            # B número
+            else:
+                return [B * A[i] for i in range(len(A))]
 
-            return res
-            
-    else:     
-        if nCols_B == 1:
-            return [ A*i for i in B ]
+        # A matriz
         else:
-            res = []
-            for j in range(nRows_B):
-                res.append([ A*i for i in B[j] ])
+            if not isinstance(B, (int, float)):
+                # B vector
+                if isinstance(B[0], (int, float)):
+                    return vector_x_matrix(A, B)
+                # B matriz
+                else:
+                    return matrix_x_matrix(A, B)
+            # B número
+            else:
+                return num_x_matrix(B, A)
 
-            return res
+    # A número
+    else:
+        if not isinstance(B, (int, float)):
+            # B vector
+            if isinstance(B[0], (int, float)):
+                return [A * B[i] for i in range(len(B))]
+            # B matriz
+            else:
+                return num_x_matrix(A, B)
+        # B número
+        else:
+            return A * B
+
 
 def normalize(V):
     norm_ = norm(V)
@@ -119,3 +125,40 @@ def inverse(m):
 
 def norm(V):
     return (V[0]**2 + V[1]**2 + V[2]**2)**0.5
+
+def matrix_x_matrix(A, B): # A x B
+    """ Multiplica A x B con la forma MxN * NxP = MxP. Las columnas de A deben ser igual a las filas de B."""
+    nrow_b = len(B)
+    ncols_b = len(B[0])
+
+    result = []
+    for i in range(len(A)): # filas A
+        row = []
+        for j in range(ncols_b): # columnas B
+            row.append( dot_product(A[i], [x[j] for x in B]) )
+        
+        result.append(row)
+
+    return result
+
+def vector_x_matrix(M, V):
+    """ Multiplica la matriz M por el vector V. Columnas de M deben ser igual a filas (len) de V."""
+    result = []
+    for i in range(len(M)): # filas M
+        result.append(dot_product(M[i], V))
+
+    return result
+
+def vector_x_vector(V1, V2):
+    """ Multiplicación de elementos en matriz. """
+    return [V1[i] * V2[i] for i in range(len(V1))]
+
+def num_x_matrix(num, M):
+    """ Multiplica escalar por una matriz. """
+
+    for j in len(M): #filas
+        for i in len(M[0]): #columnas
+            M[j][i] = M[j][i] * num
+
+    return M
+
