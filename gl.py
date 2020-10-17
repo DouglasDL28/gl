@@ -1,7 +1,7 @@
 import struct
 import random
 import glMath
-from numpy import matrix, cos, sin, tan, pi
+from numpy import cos, sin, tan, pi
 
 from obj import Obj
 from collections import namedtuple
@@ -112,10 +112,13 @@ class Raytracer(object):
 
         self.scene = []
 
-        self.pointLight = None
+        self.pointLights = []
+
+        self.dirLight = None
         self.ambientLight = None
 
         self.envmap = None
+
 
     def glCreateWindow(self, width, height):
         self.width = width
@@ -140,8 +143,8 @@ class Raytracer(object):
         self.pixels = [ [ texture.getColor(x / self.width, y / self.height) for x in range(self.width)] for y in range(self.height) ]
 
     def glVertex(self, x, y, color = None):
-        pixelX = ( x + 1) * (self.vpWidth  / 2 ) + self.vpX
-        pixelY = ( y + 1) * (self.vpHeight / 2 ) + self.vpY
+        pixelX = (x + 1) * (self.vpWidth  / 2 ) + self.vpX
+        pixelY = (y + 1) * (self.vpHeight / 2 ) + self.vpY
 
         if pixelX >= self.width or pixelX < 0 or pixelY >= self.height or pixelY < 0:
             return
@@ -300,15 +303,13 @@ class Raytracer(object):
                         material.diffuse[0] / 255]
 
         ambientColor = [0,0,0]
-        diffuseColor = [0,0,0]
-        specColor = [0,0,0]
+        dirLightColor = [0,0,0]
+        pLightColor = [0,0,0]
 
         reflectColor = [0,0,0]
         refractColor = [0,0,0]
 
         finalColor = [0,0,0]
-
-        shadow_intensity = 0
 
         # Direccion de vista
         view_dir = glMath.substract(self.camPosition, intersect.point)
@@ -319,16 +320,51 @@ class Raytracer(object):
                             self.ambientLight.strength * self.ambientLight.color[1] / 255,
                             self.ambientLight.strength * self.ambientLight.color[0] / 255]
 
-        if self.pointLight:
+        if self.dirLight:
+            diffuseColor = [0,0,0]
+            specColor = [0,0,0]
+            shadow_intensity = 0
+
             # Sacamos la direccion de la luz para este punto
-            light_dir = glMath.substract(self.pointLight.position, intersect.point)
+            light_dir = glMath.multiply(list(self.dirLight.direction), -1)
+
+            # Calculamos el valor del diffuse color
+            #TODO
+            intensity = self.dirLight.intensity * max(0, glMath.dot_product(light_dir, intersect.normal))
+            diffuseColor = [intensity * self.dirLight.color[2] / 255,
+                            intensity * self.dirLight.color[1] / 255,
+                            intensity * self.dirLight.color[0] / 255]
+
+            # Iluminacion especular
+            reflect = reflectVector(intersect.normal, light_dir) # Reflejar el vector de luz
+
+            # spec_intensity: lightIntensity * ( view_dir dot reflect) ** especularidad
+            spec_intensity = self.dirLight.intensity * (max(0, glMath.dot_product(view_dir, reflect)) ** material.spec)
+            specColor = [spec_intensity * self.dirLight.color[2] / 255,
+                        spec_intensity * self.dirLight.color[1] / 255,
+                        spec_intensity * self.dirLight.color[0] / 255]
+
+
+            shadMat, shadInter = self.scene_intercept(intersect.point, light_dir, intersect.sceneObject)
+            if shadInter is not None:
+                shadow_intensity = 1
+
+            dirLightColor = glMath.multiply((1 - shadow_intensity), glMath.add(diffuseColor, specColor))
+
+        for pointLight in self.pointLights:
+            diffuseColor = [0,0,0]
+            specColor = [0,0,0]
+            shadow_intensity = 0
+
+            # Sacamos la direccion de la luz para este punto
+            light_dir = glMath.substract(pointLight.position, intersect.point)
             light_dir = glMath.normalize(light_dir)
 
             # Calculamos el valor del diffuse color
             intensity = self.pointLight.intensity * max(0, glMath.dot_product(light_dir, intersect.normal))
             diffuseColor = [intensity * self.pointLight.color[2] / 255,
                             intensity * self.pointLight.color[1] / 255,
-                            intensity * self.pointLight.color[2] / 255]
+                            intensity * self.pointLight.color[0] / 255]
 
             # Iluminacion especular
             reflect = reflectVector(intersect.normal, light_dir) # Reflejar el vector de luz
@@ -340,14 +376,25 @@ class Raytracer(object):
                         spec_intensity * self.pointLight.color[0] / 255]
 
 
-            shadMat, shadInter = self.scene_intercept(intersect.point,  light_dir, intersect.sceneObject)
-            if shadInter is not None and shadInter.distance < glMath.norm(glMath.substract(self.pointLight.position, intersect.point)):
+            shadMat, shadInter = self.scene_intercept(intersect.point, light_dir, intersect.sceneObject)
+            if shadInter is not None and shadInter.distance < glMath.norm(glMath.substract(pointLight.position, intersect.point)):
                 shadow_intensity = 1
+
+            pLightColor = glMath.add(pLightColor, glMath.multiply((1 - shadow_intensity), glMath.add(diffuseColor, specColor)))
 
         
         if material.matType == OPAQUE:
             # Formula de iluminacion, PHONG
-            finalColor = glMath.add(ambientColor, glMath.multiply((1 - shadow_intensity), glMath.add(diffuseColor,specColor)))
+            finalColor = glMath.add(ambientColor, glMath.add(dirLightColor, pLightColor))
+
+            if material.texture and intersect.texCoords:
+
+                texColor = material.texture.getColor(intersect.texCoords[0], intersect.texCoords[1])
+
+                finalColor = glMath.multiply([texColor[2] / 255,
+                                            texColor[1] / 255,
+                                            texColor[0] / 255], finalColor)
+
         elif material.matType == REFLECTIVE:
             reflect = reflectVector(intersect.normal, glMath.multiply(list(direction), -1))
             reflectColor = self.castRay(intersect.point, reflect, intersect.sceneObject, recursion + 1)
@@ -355,10 +402,9 @@ class Raytracer(object):
                             reflectColor[1] / 255,
                             reflectColor[0] / 255]
 
-            finalColor = glMath.add(reflectColor, glMath.multiply((1 - shadow_intensity), specColor))
+            finalColor = reflectColor
 
         elif material.matType == TRANSPARENT:
-
             outside = glMath.dot_product(direction, intersect.normal) < 0
             bias = glMath.multiply(0.001, intersect.normal)
             kr = fresnel(intersect.normal, direction, material.ior)
@@ -377,16 +423,17 @@ class Raytracer(object):
                 refractColor = [refractColor[2] / 255,
                                 refractColor[1] / 255,
                                 refractColor[0] / 255]
-
-            finalColor = glMath.add(glMath.multiply(reflectColor, kr), glMath.add(glMath.multiply(refractColor, (1 - kr)), glMath.multiply((1 - shadow_intensity), specColor)))
+            
+            # TODO
+            finalColor = glMath.add(glMath.multiply(reflectColor, kr), glMath.multiply(refractColor, (1 - kr)))
 
         # Le aplicamos el color del objeto
         finalColor = glMath.multiply(objectColor, finalColor)
 
         #Nos aseguramos que no suba el valor de color de 1
-        r = min(1,finalColor[0])
-        g = min(1,finalColor[1])
-        b = min(1,finalColor[2])
+        r = min(1, finalColor[0])
+        g = min(1, finalColor[1])
+        b = min(1, finalColor[2])
 
         return color(r, g, b)
 

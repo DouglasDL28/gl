@@ -17,12 +17,13 @@ whale_skin = Material(diffuse=color(1, 1, 1), spec = 32)
 whale_eye = Material(diffuse=color(0.3, 0.3, 0.3), spec=256)
 
 boxMat = Material(texture = Texture('box.bmp'))
+woodMat = Material(texture = Texture('wood.bmp'))
 
 moonMat = Material(texture = Texture('moon.bmp'))
 
 
-width = 256
-height = 256
+width = 512
+height = 512
 r = Raytracer(width,height)
 # r.glClearColor(0.2, 0.6, 0.8)
 r.glClear()
@@ -32,13 +33,9 @@ r.envmap = Envmap('sky1.bmp')
 # Lights
 #r.pointLights.append( PointLight(position = V3(-4,4,0), intensity = 0.5))
 #r.pointLights.append( PointLight(position = V3( 4,0,0), intensity = 0.5))
-r.dirLight = DirectionalLight(direction = V3(1, -1, -2), intensity = 0.6)
+r.dirLight = DirectionalLight(direction = V3(1, -1, -1), intensity = 0.6)
 r.ambientLight = AmbientLight(strength = 0.3)
 
-# Objects
-#r.scene.append( Sphere(V3( 0, 0, -8), 2, brick) )
-#r.scene.append( Sphere(V3( -0.5, 0.5, -5), 0.25, stone))
-#r.scene.append( Sphere(V3( 0.25, 0.5, -5), 0.25, stone))
 
 #Water
 r.scene.append(Plane(V3(0, -6, 1),V3(0, 1, 0), glass))
@@ -61,7 +58,12 @@ r.scene.append( AABB(V3( 3,-1,-16), V3(1, 1, 1), whale_eye)) # right eye
 
 
 #Perquod
-# r.scene.append( AABB(V3(0, -3, -10), V3(5, 0.1, 5) , boxMat ) )
+r.scene.append( AABB(V3(-1, -3, -10), V3(0.2, 1, 1) , woodMat ) ) 
+r.scene.append( AABB(V3(0, -3, -10), V3(0.2, 1.5, 1) , woodMat ) ) 
+r.scene.append( AABB(V3(1, -3, -10), V3(0.2, 1, 1) , woodMat ) ) 
+r.scene.append( AABB(V3(0, -4, -10), V3(3.5, 0.2, 2) , woodMat ) ) # Base 1
+r.scene.append( AABB(V3(0, -4.3, -10), V3(3, 0.4, 2) , woodMat ) ) # Base 2
+r.scene.append( AABB(V3(0, -4.5, -10), V3(2.5, 0.4, 2) , woodMat ) )# Base 3
 
 r.scene.append( Sphere(V3( -5, 10, -20), 2, moonMat)) # moon
 
