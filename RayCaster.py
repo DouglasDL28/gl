@@ -133,7 +133,6 @@ r.load_map('maps/map2.txt')
 
 isRunning = True
 while isRunning:
-
     for ev in pygame.event.get():
         if ev.type == pygame.QUIT:
             isRunning = False
@@ -169,14 +168,11 @@ while isRunning:
                 r.player['x'] = newX
                 r.player['y'] = newY
 
-    # Background
-    screen.fill(pygame.Color("gray"))
+    screen.fill(pygame.Color("gray")) # Background
 
-    # Sky
-    screen.fill(pygame.Color("skyblue"), (int(r.width / 2), 0, int(r.width / 2),int(r.height / 2)))
+    screen.fill(pygame.Color("skyblue"), (int(r.width / 2), 0, int(r.width / 2),int(r.height / 2))) # Sky
     
-    # Floor
-    screen.fill(pygame.Color("green"), (int(r.width / 2), int(r.height / 2), int(r.width / 2),int(r.height / 2)))
+    screen.fill(pygame.Color("green"), (int(r.width / 2), int(r.height / 2), int(r.width / 2),int(r.height / 2))) # Floor
 
     r.render()
     
