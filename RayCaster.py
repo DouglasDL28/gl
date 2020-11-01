@@ -1,123 +1,10 @@
 import pygame
 import sys
-
 from math import cos, sin, pi
 
+from gl import *
+
 from pygame.constants import KEYDOWN, K_ESCAPE, MOUSEBUTTONDOWN, MOUSEBUTTONUP, QUIT
-
-BLACK = (0,0,0)
-WHITE = (255,255,255)
-BACKGROUND = (64,64,64)
-
-textures = {
-    '1' : pygame.image.load('textures/cobble.jpg'),
-    '2' : pygame.image.load('textures/diamond.png'),
-    '3' : pygame.image.load('textures/gold.png'),
-    '4' : pygame.image.load('textures/iron.jpg'),
-    '5' : pygame.image.load('textures/obsidian.png')
-    }
-
-class Raycaster(object):
-    def __init__(self,screen):
-        self.screen = screen
-        _, _, self.width, self.height = screen.get_rect()
-
-        self.map = []
-        self.blocksize = 50
-        self.wallHeight = 50
-
-        self.stepSize = 5
-
-        self.player = {
-            "x" : 75,
-            "y" : 175,
-            "angle" : 0,
-            "fov" : 60
-            }
-
-    def load_map(self, filename):
-        with open(filename) as f:
-            for line in f.readlines():
-                self.map.append(list(line))
-
-    def drawRect(self, x, y, tex):
-        tex = pygame.transform.scale(tex, (self.blocksize, self.blocksize))
-        rect = tex.get_rect()
-        rect = rect.move( (x,y) )
-        self.screen.blit(tex, rect)
-
-    def drawPlayerIcon(self,color):
-
-        rect = (int(self.player['x'] - 2), int(self.player['y'] - 2), 5, 5)
-        self.screen.fill(color, rect)
-
-    def castRay(self, a):
-        rads = a * pi / 180
-        dist = 0
-        while True:
-            x = int(self.player['x'] + dist * cos(rads))
-            y = int(self.player['y'] + dist * sin(rads))
-
-            i = int(x/self.blocksize)
-            j = int(y/self.blocksize)
-
-            if self.map[j][i] != ' ':
-                hitX = x - i*self.blocksize
-                hitY = y - j*self.blocksize
-
-                if 1 < hitX < self.blocksize - 1:
-                    maxHit = hitX
-                else:
-                    maxHit = hitY
-
-                tx = maxHit / self.blocksize
-
-                return dist, self.map[j][i], tx
-
-            self.screen.set_at((x,y), WHITE)
-
-            dist += 2
-
-    def render(self):
-        halfWidth = int(self.width / 2)
-        halfHeight = int(self.height / 2)
-
-        for x in range(0, halfWidth, self.blocksize):
-            for y in range(0, self.height, self.blocksize):
-                
-                i = int(x/self.blocksize)
-                j = int(y/self.blocksize)
-
-                if self.map[j][i] != ' ':
-                    self.drawRect(x, y, textures[self.map[j][i]])
-
-        self.drawPlayerIcon(BLACK)
-
-        for i in range(halfWidth):
-            angle = self.player['angle'] - self.player['fov'] / 2 + self.player['fov'] * i / halfWidth
-            dist, wallType, tx = self.castRay(angle)
-
-            x = halfWidth + i 
-
-            # perceivedHeight = screenHeight / (distance * cos( rayAngle - viewAngle) * wallHeight
-            h = self.height / (dist * cos( (angle - self.player['angle']) * pi / 180 )) * self.wallHeight
-
-            start = int( halfHeight - h/2)
-            end = int( halfHeight + h/2)
-
-            img = textures[wallType]
-            tx = int(tx * img.get_width())
-
-            for y in range(start, end):
-                ty = (y - start) / (end - start)
-                ty = int(ty * img.get_height())
-                texColor = img.get_at((tx, ty))
-                self.screen.set_at((x, y), texColor)
-
-        for i in range(self.height):
-            self.screen.set_at( (halfWidth, i), BLACK)
-            self.screen.set_at( (halfWidth+1, i), BLACK)
-            self.screen.set_at( (halfWidth-1, i), BLACK)
 
 
 pygame.init()
@@ -134,7 +21,7 @@ def updateFPS():
 r = Raycaster(screen)
 r.load_map('maps/map2.txt')
 
-bg = pygame.image.load('textures/diamond.png')
+bg = pygame.image.load('bg.png')
 
 def draw_text(text, font, color, surface, x, y):
     textobj = font.render(text, 1, color)
@@ -146,24 +33,36 @@ def draw_text(text, font, color, surface, x, y):
 def main_menu ():
     click = False
     while True:
-        screen.blit(bg, (0, 0))
-        draw_text('Menú principal', font, (255, 255, 255), screen, 20, 20)
+        screen.blit(bg, (0,0))
+        draw_text('MENÚ PRINCIPAL', font, (255, 255, 255), screen, r.width/2.5, 20)
 
         mx, my = pygame.mouse.get_pos()
 
-        button_1 = pygame.Rect(50, 100, 200, 50)
-        button_2 = pygame.Rect(50, 200, 200, 50)
 
-        if button_1.collidepoint(mx, my): # Inicio
-            if click: 
+        button_2 = pygame.Rect(r.width/3, 250, 300, 50)
+        button_1 = pygame.Rect(r.width/3, 100, 300, 50)
+
+
+        if button_1.collidepoint(mx, my): # Jugar
+            if click:
                 game()
-        if button_2.collidepoint(mx, my): # Salida
+        if button_2.collidepoint(mx, my): # Salir
             if click:
                 pygame.quit()
                 sys.exit()
 
         pygame.draw.rect(screen, (255,0,0), button_1)
         pygame.draw.rect(screen, (255,0,0), button_2)
+
+        #Play button text
+        play_text = font.render("Jugar", False, (0, 0, 0))
+        play_rect = play_text.get_rect(center=button_1.center)
+        screen.blit(play_text, play_rect)
+
+        #Quit button text
+        play_text = font.render("Salir", False, (0, 0, 0))
+        play_rect = play_text.get_rect(center=button_2.center)
+        screen.blit(play_text, play_rect)
 
         click = False
         for event in pygame.event.get():
