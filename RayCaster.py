@@ -13,6 +13,8 @@ screen.set_alpha(None)
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("Arial", 30)
 
+pygame.mixer.music.load("music/C418 - Sweden - Minecraft Volume Alpha.mp3")
+
 def updateFPS():
     fps = str(int(clock.get_fps()))
     fps = font.render(fps, 1, pygame.Color("white"))
@@ -45,6 +47,7 @@ def main_menu ():
 
         if button_1.collidepoint(mx, my): # Jugar
             if click:
+                pygame.mixer.music.unpause()
                 game()
         if button_2.collidepoint(mx, my): # Salir
             if click:
@@ -92,6 +95,7 @@ def game():
 
             if ev.type == pygame.KEYDOWN:
                 if ev.key == pygame.K_ESCAPE:
+                    pygame.mixer.music.pause()
                     isRunning = False
                 elif ev.key == pygame.K_w:
                     newX += cos(r.player['angle'] * pi / 180) * r.stepSize
@@ -133,6 +137,7 @@ def game():
         
         pygame.display.update()
 
+pygame.mixer.music.play(-1)
 main_menu()
 
 
