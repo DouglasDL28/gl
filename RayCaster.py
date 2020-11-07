@@ -38,13 +38,13 @@ def main_menu ():
 
     while True:
         screen.blit(bg, (0,0))
-        draw_text('MENÚ PRINCIPAL', font, (255, 255, 255), screen, r.width/2.5, 20)
+        draw_text('MENÚ PRINCIPAL', font, (255, 255, 255), screen, r.width/3+25, 50)
 
         mx, my = pygame.mouse.get_pos()
 
 
-        button_2 = pygame.Rect(r.width/3, 250, 300, 50)
-        button_1 = pygame.Rect(r.width/3, 100, 300, 50)
+        button_2 = pygame.Rect(r.width/3, 200, 200, 50)
+        button_1 = pygame.Rect(r.width/3, 100, 200, 50)
 
 
         if button_1.collidepoint(mx, my): # Jugar
