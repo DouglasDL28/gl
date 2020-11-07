@@ -8,7 +8,7 @@ from pygame.constants import KEYDOWN, K_ESCAPE, MOUSEBUTTONDOWN, MOUSEBUTTONUP, 
 
 
 pygame.init()
-screen = pygame.display.set_mode((1000,500), pygame.DOUBLEBUF | pygame.HWACCEL) #, pygame.FULLSCREEN)
+screen = pygame.display.set_mode((500,500), pygame.DOUBLEBUF | pygame.HWACCEL) #, pygame.FULLSCREEN)
 screen.set_alpha(None)
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("Arial", 30)
@@ -20,8 +20,8 @@ def updateFPS():
     fps = font.render(fps, 1, pygame.Color("white"))
     return fps
 
-r = Raycaster(screen)
-r.load_map('maps/map2.txt')
+map_file = 'maps/map2.txt'
+r = Raycaster(screen, map_file)
 
 bg = pygame.image.load('bg.png')
 
@@ -34,6 +34,8 @@ def draw_text(text, font, color, surface, x, y):
 
 def main_menu ():
     click = False
+    isPlaying = False
+
     while True:
         screen.blit(bg, (0,0))
         draw_text('MENÚ PRINCIPAL', font, (255, 255, 255), screen, r.width/2.5, 20)
@@ -49,6 +51,8 @@ def main_menu ():
             if click:
                 pygame.mixer.music.unpause()
                 game()
+                isPlaying = True
+
         if button_2.collidepoint(mx, my): # Salir
             if click:
                 pygame.quit()
@@ -57,8 +61,9 @@ def main_menu ():
         pygame.draw.rect(screen, (255,0,0), button_1)
         pygame.draw.rect(screen, (255,0,0), button_2)
 
+        play_btn_txt = "Continuar" if isPlaying else "Jugar"
         #Play button text
-        play_text = font.render("Jugar", False, (0, 0, 0))
+        play_text = font.render(play_btn_txt, False, (0, 0, 0))
         play_rect = play_text.get_rect(center=button_1.center)
         screen.blit(play_text, play_rect)
 
@@ -124,9 +129,9 @@ def game():
 
         screen.fill(pygame.Color("gray")) # Background
 
-        screen.fill(pygame.Color("skyblue"), (int(r.width / 2), 0, int(r.width / 2),int(r.height / 2))) # Sky
+        screen.fill(pygame.Color("skyblue"), (0, 0, int(r.width),int(r.height / 2))) # Sky
         
-        screen.fill(pygame.Color("green"), (int(r.width / 2), int(r.height / 2), int(r.width / 2),int(r.height / 2))) # Floor
+        screen.fill(pygame.Color("green"), (0, int(r.height/2), int(r.width),int(r.height / 2))) # Floor
 
         r.render()
         

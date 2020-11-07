@@ -1,6 +1,5 @@
 import pygame
 from math import cos, sin, pi, atan2
-from pygame.constants import KEYDOWN, K_ESCAPE, MOUSEBUTTONDOWN, MOUSEBUTTONUP, QUIT
 
 WHITE = (255,255,255)
 BLACK = (0,0,0)
@@ -20,28 +19,28 @@ enemies = [
     {
         "x": 100,
         "y": 200,
-        "texture" : pygame.image.load('sprites/sprite1.png')
+        "texture" : pygame.image.load('sprites/eyeless.png')
     },
     {
         "x": 270,
         "y": 200,
-        "texture" : pygame.image.load('sprites/sprite2.png')
+        "texture" : pygame.image.load('sprites/chicken_zombie.png')
     },
     {
         "x": 320,
         "y": 420,
-        "texture" : pygame.image.load('sprites/sprite3.png')
+        "texture" : pygame.image.load('sprites/zombie.png')
     }
 ]
 
 
 class Raycaster(object):
-    def __init__(self,screen):
+    def __init__(self,screen, filename):
         self.screen = screen
         _, _, self.width, self.height = screen.get_rect()
 
-        self.map = []
-        self.zbuffer = [-float('inf') for z in range(int(self.width / 2))]
+        self.map = self.load_map(filename)
+        self.zbuffer = [-float('inf') for z in range(self.width)]
 
         self.blocksize = 50
         self.wallHeight = 50
@@ -56,18 +55,23 @@ class Raycaster(object):
             }
 
     def load_map(self, filename):
+        map = []
         with open(filename) as f:
             for line in f.readlines():
-                self.map.append(list(line))
+                map.append(line.rstrip('\n') )
+
+        return map
 
     def drawRect(self, x, y, tex):
-        tex = pygame.transform.scale(tex, (self.blocksize, self.blocksize))
+        x = x / 4
+        y = y / 4
+        tex = pygame.transform.scale(tex, (int(self.blocksize/4), int(self.blocksize/4)))
         rect = tex.get_rect()
         rect = rect.move( (x,y) )
         self.screen.blit(tex, rect)
 
     def drawPlayerIcon(self,color):
-        rect = (int(self.player['x'] - 2), int(self.player['y'] - 2), 5, 5)
+        rect = (int(((self.player['x'] - 2)/4)), int((self.player['y'] - 2)/4), 5, 5)
         self.screen.fill(color, rect)
 
     def drawSprite(self, sprite, size):
@@ -86,22 +90,22 @@ class Raycaster(object):
         fovRads = self.player['fov'] * pi / 180
 
         #Buscamos el punto inicial para dibujar el sprite
-        startX = (self.width * 3 / 4) + (spriteAngle - angleRads)*(self.width/2) / fovRads - (spriteWidth/2)
+        startX = (self.width * 3 / 4) + (spriteAngle - angleRads)*(self.width) / fovRads - (spriteWidth/2)
         startY = (self.height / 2) - (spriteHeight / 2)
         startX = int(startX)
         startY = int(startY)
 
         for x in range(startX, int(startX + spriteWidth)):
             for y in range(startY, int(startY + spriteHeight)):
-                if (self.width / 2) < x < self.width:
-                    if self.zbuffer[ x - int(self.width/2)] >= spriteDist:
+                    if (0 < x < self.width) and (self.zbuffer[ x - int(self.width)] >= spriteDist):
                         tx = int( (x - startX) * sprite["texture"].get_width() / spriteWidth )
                         ty = int( (y - startY) * sprite["texture"].get_height() / spriteHeight )
                         texColor = sprite["texture"].get_at((tx, ty))
                         if texColor[3] > 128 and texColor != SPRITE_BACKGROUND:
                             self.screen.set_at((x,y), texColor)
-                            self.zbuffer[ x - int(self.width/2)] = spriteDist
+                            self.zbuffer[ x - int(self.width)] = spriteDist
 
+                        
     def castRay(self, a):
         rads = a * pi / 180
         dist = 0
@@ -125,39 +129,26 @@ class Raycaster(object):
 
                 return dist, self.map[j][i], tx
 
-            self.screen.set_at((x,y), WHITE)
+            self.screen.set_at((int(x/4),int(y/4)), WHITE)
 
-            dist += 2
+            dist += 3
 
     def render(self):
 
-        halfWidth = int(self.width / 2)
         halfHeight = int(self.height / 2)
 
-        for x in range(0, halfWidth, self.blocksize):
-            for y in range(0, self.height, self.blocksize):
-                
-                i = int(x/self.blocksize)
-                j = int(y/self.blocksize)
-
-                if self.map[j][i] != ' ':
-                    self.drawRect(x, y, textures[self.map[j][i]])
-
-        self.drawPlayerIcon(BLACK)
-
-        for i in range(halfWidth):
-            angle = self.player['angle'] - self.player['fov'] / 2 + self.player['fov'] * i / halfWidth
+        #Dibujo de pantalla
+        for x in range(self.width):
+            angle = self.player['angle'] - self.player['fov'] / 2 + self.player['fov'] * x / self.width
             dist, wallType, tx = self.castRay(angle)
 
-            self.zbuffer[i] = dist
-
-            x = halfWidth + i 
+            self.zbuffer[x] = dist
 
             # perceivedHeight = screenHeight / (distance * cos( rayAngle - viewAngle) * wallHeight
             h = self.height / (dist * cos( (angle - self.player['angle']) * pi / 180 )) * self.wallHeight
 
-            start = int( halfHeight - h/2)
-            end = int( halfHeight + h/2)
+            start = int(halfHeight - h/2)
+            end = int(halfHeight + h/2)
 
             img = textures[wallType]
             tx = int(tx * img.get_width())
@@ -168,13 +159,23 @@ class Raycaster(object):
                 texColor = img.get_at((tx, ty))
                 self.screen.set_at((x, y), texColor)
 
+        for i in range(self.height):
+            self.screen.set_at((self.width, i), BLACK)
+
+        # MINIMAP
         for enemy in enemies:
-            self.screen.fill(pygame.Color("red"), (enemy['x'], enemy['y'], 3 , 3))
+            self.screen.fill(pygame.Color("red"), (enemy['x']/4, enemy['y']/4, 3 , 3))
             self.drawSprite(enemy, 30)
 
-        for i in range(self.height):
-            self.screen.set_at( (halfWidth, i), BLACK)
-            self.screen.set_at( (halfWidth+1, i), BLACK)
-            self.screen.set_at( (halfWidth-1, i), BLACK)
+        for x in range(0, len(self.map[0])*self.blocksize, self.blocksize):
+            for y in range(0, len(self.map)*self.blocksize, self.blocksize):
+                
+                i = int(x/self.blocksize)
+                j = int(y/self.blocksize)
+
+                if self.map[j][i] != ' ':
+                    self.drawRect(x, y, textures[self.map[j][i]])
+
+        self.drawPlayerIcon(BLACK)
 
 
