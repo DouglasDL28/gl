@@ -27,8 +27,8 @@ r.modelList.append(Model('./models/Gold/gold.obj',
                          './models/Gold/gold_tex.bmp',
                          rotation=glm.vec3(-45,0,90),
                          scale=glm.vec3(0.2,0.2,0.2)))
-r.modelList.append(Model('./models/Rock/rock.obj',
-                         './models/Rock/rock_tex.bmp',
+r.modelList.append(Model('./models/T-Rex/T-Rex.obj',
+                         './models/T-Rex/GRANDECO.bmp',
                          scale=glm.vec3(0.01,0.01,0.01)))
 r.modelList.append(Model('./models/Stone/stone.obj',
                          './models/Stone/stone_tex.bmp',
