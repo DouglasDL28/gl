@@ -1,117 +1,43 @@
-from gl import *
-import glMath
+# Los shaders de OpenGL se escriben en un lenguaje de progra llamado GLSL
+
+vertex_shader = """
+#version 330
+layout (location = 0) in vec4 pos;
+layout (location = 1) in vec4 normal;
+layout (location = 2) in vec2 texcoords;
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+
+uniform vec4 color;
+uniform vec4 light;
+
+out vec4 vertexColor;
+out vec2 vertexTexcoords;
+
+void main()
+{
+    float intensity = dot(model * normal, normalize(light - pos));
+
+    gl_Position = projection * view * model * pos;
+    vertexColor = color * intensity;
+    vertexTexcoords = texcoords;
+}
+"""
 
 
-def gourad(render, **kwargs):
-    u, v, w = kwargs['baryCoords']
-    ta, tb, tc = kwargs['texCoords']
-    na, nb, nc = kwargs['normals']
-    b, g, r = kwargs['color']
+fragment_shader = """
+#version 330
+layout (location = 0) out vec4 diffuseColor;
 
-    b /= 255
-    g /= 255
-    r /= 255
+in vec4 vertexColor;
+in vec2 vertexTexcoords;
 
-    if render.active_texture:
-        tx = ta.x * u + tb.x * v + tc.x * w
-        ty = ta.y * u + tb.y * v + tc.y * w
-        texColor = render.active_texture.getColor(tx, ty)
-        b *= texColor[0] / 255
-        g *= texColor[1] / 255
-        r *= texColor[2] / 255
+uniform sampler2D tex;
 
-    nx = na[0] * u + nb[0] * v + nc[0] * w
-    ny = na[1] * u + nb[1] * v + nc[1] * w
-    nz = na[2] * u + nb[2] * v + nc[2] * w
-
-    normal = V3(nx, ny, nz)
-
-    intensity = glMath.dot_product(normal, render.light)
-
-    b *= intensity
-    g *= intensity
-    r *= intensity
-
-    if intensity > 0:
-        return r, g, b
-    else:
-        return 0,0,0
-
-def toon(render, **kwargs):
-    u, v, w = kwargs['baryCoords']
-    ta, tb, tc = kwargs['texCoords']
-    na, nb, nc = kwargs['normals']
-    b, g, r = kwargs['color']
-
-    b /= 255
-    g /= 255
-    r /= 255
-
-    if render.active_texture:
-        tx = ta.x * u + tb.x * v + tc.x * w
-        ty = ta.y * u + tb.y * v + tc.y * w
-        texColor = render.active_texture.getColor(tx, ty)
-        b *= texColor[0] / 255
-        g *= texColor[1] / 255
-        r *= texColor[2] / 255
-
-    nx = na[0] * u + nb[0] * v + nc[0] * w
-    ny = na[1] * u + nb[1] * v + nc[1] * w
-    nz = na[2] * u + nb[2] * v + nc[2] * w
-
-    normal = V3(nx, ny, nz)
-
-    intensity = glMath.dot_product(normal, render.light)
-
-    b *= intensity
-    g *= intensity
-    r *= intensity
-
-    if intensity > 0:
-        return round(r, 1), round(g, 1), round(b, 1)
-    else:
-        return 0,0,0
-
-def sombreadoCool(render, **kwargs):
-    u, v, w = kwargs['baryCoords']
-    ta, tb, tc = kwargs['texCoords']
-    na, nb, nc = kwargs['normals']
-    b, g, r = kwargs['color']
-
-    b /= 255
-    g /= 255
-    r /= 255
-
-    if render.active_texture:
-        tx = ta.x * u + tb.x * v + tc.x * w
-        ty = ta.y * u + tb.y * v + tc.y * w
-        texColor = render.active_texture.getColor(tx, ty)
-        b *= texColor[0] / 255
-        g *= texColor[1] / 255
-        r *= texColor[2] / 255
-
-    nx = na[0] * u + nb[0] * v + nc[0] * w
-    ny = na[1] * u + nb[1] * v + nc[1] * w
-    nz = na[2] * u + nb[2] * v + nc[2] * w
-
-    normal = V3(nx, ny, nz)
-
-    intensity = glMath.dot_product(normal, render.light)
-    if intensity < 0:
-        intensity = 0
-
-    b *= intensity
-    g *= intensity
-    r *= intensity
-
-    if render.active_texture2:
-        texColor = render.active_texture2.getColor(tx, ty)
-
-        b += (texColor[0] / 255) * (1 - intensity)
-        g += (texColor[1] / 255) * (1 - intensity)
-        r += (texColor[2] / 255) * (1 - intensity)
-
-
-    return r, g, b
-
-
+void main()
+{
+    diffuseColor =  vertexColor * texture(tex, vertexTexcoords);
+}
+"""
