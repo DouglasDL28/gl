@@ -27,6 +27,11 @@ r.modelList.append(Model('./models/Gold/gold.obj',
                          './models/Gold/gold_tex.bmp',
                          rotation=glm.vec3(-45,0,90),
                          scale=glm.vec3(0.2,0.2,0.2)))
+r.modelList.append(Model('./models/Rose/rose.obj',
+                         './models/Rose/rose_tex.bmp',
+                         rotation=glm.vec3(0,0,0),
+                         position=glm.vec3(0,-10,0),
+                         scale=glm.vec3(0.1,0.1,0.1)))
 r.modelList.append(Model('./models/T-Rex/T-Rex.obj',
                          './models/T-Rex/GRANDECO.bmp',
                          scale=glm.vec3(0.01,0.01,0.01)))
@@ -34,11 +39,13 @@ r.modelList.append(Model('./models/Stone/stone.obj',
                          './models/Stone/stone_tex.bmp',
                          scale=glm.vec3(0.4,0.4,0.4)))
 
+pygame.mixer.music.load("./music/Sweden.mp3")
+pygame.mixer.music.play(-1)
 
 isDragging = False
 isPlaying = True
-while isPlaying:
 
+while isPlaying:
     # Para revisar si una tecla esta presionada
     keys = pygame.key.get_pressed()
 
@@ -92,6 +99,8 @@ while isPlaying:
     pygame.display.flip()
     clock.tick(60)
     deltaTime = clock.get_time() / 1000
+
+    
 
 
 pygame.quit()
